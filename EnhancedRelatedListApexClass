@@ -1,0 +1,180 @@
+/* 
+Author		: Bharathimohan Ramamurthy
+Created Date: 11/09/2014
+Code Type   : Apex Class
+Description : To demonstrate the effective usage of Standard Salesforce.com page layouts by embedding our custom Visual Force into it as a section
+*/
+public with sharing class EnhancedRelatedList 
+{
+	private ApexPages.StandardController sCon {get;set;}
+	
+	//Variables for dynamic column selection starts
+	public Map<String, Schema.SobjectField> fields = Schema.SobjectType.Opportunity.fields.getMap();	
+	public Set<String> unSelectedSet = new Set<String>();
+	public Set<String> selectedSet = new Set<String>();
+	public transient List<String> selectedList { get; set;}       
+    public transient List<String> unselectedList { get; set;}
+    //Variables for dynamic column selection starts
+    
+    //Map which holds all the fields from Opportunity having API Name as Key and Label as Value
+    public Map<String, String> APIVsLabel = new Map<String,String>(); 
+    
+	//Extension constructor initialization	
+	public EnhancedRelatedList(ApexPages.Standardcontroller sCon)
+	{
+		this.sCon = sCon;				
+        
+        //Populating APIVsLabel Map
+        for (String s : fields.keySet()) 
+        {
+            Schema.Describefieldresult fieldDesc = fields.get(s).getDescribe();                    
+            if (fieldDesc.isAccessible() && s!='Name')
+            {               	
+                APIVsLabel.put(s,fieldDesc.getLabel());
+            }                   
+        }
+        //Adding all the field API Names to the unSelectedSet
+	    unSelectedSet.addAll(APIVsLabel.keySet());
+        for(FieldSetMember fsm:OpportunityFieldSet)
+        {               	 	     
+        	if(unSelectedSet.contains(fsm.getfieldPath().toLowerCase()))
+     		{
+     			//Removing from unSelectedSet as it was included in the field set
+        		unSelectedSet.remove(fsm.getfieldPath().toLowerCase());     
+				//Adding to SelectedSet as it was included in the field set
+				SelectedSet.add(fsm.getfieldPath().toLowerCase());  		
+     		}
+        } 
+	}
+	
+		
+	//Initializes the private member variable a by using the getRecord method from //the standard controller
+	private Account a
+	{
+		get
+		{
+			if(a!=null)
+				return a;
+			else
+				return (Account) sCon.getRecord();
+		}
+	}
+	//Method modified to by building the SOQL query dynamically based on the existing fields in the field set and to allow any future field inclusions or exclusions from it
+	public List<Opportunity> getOpportunityList() 
+	{
+		List<Opportunity> temp = null;
+		String DynamicQuery = 'SELECT Name,';
+		if(SelectedSet!=Null & SelectedSet.Size()>0)
+		{
+			for(String fsm : SelectedSet)
+			{
+				DynamicQuery+=fsm+',';			
+			}
+		}
+		if(DynamicQuery.endsWith(','))
+        {                            
+            DynamicQuery = DynamicQuery.substring(0,DynamicQuery.lastIndexOf(','));
+        }        
+        DynamicQuery = DynamicQuery+' FROM Opportunity WHERE AccountId=\''+a.Id+'\'';
+        System.debug('DynamicQuery print:'+DynamicQuery);
+		return Database.Query(DynamicQuery);
+	}
+	
+	
+	//List variable returning Schema.FieldSetMember from the FieldSets
+	public List<Schema.FieldSetMember> OpportunityFieldSet
+	{
+		get
+		{
+			if(OpportunityFieldSet!=Null)
+				return OpportunityFieldSet;				
+			else
+				return SObjectType.Opportunity.FieldSets.RelatedListForAccount.getFields();	
+		}        
+    }
+    public Id SelectedOpportunityId {get;set;}
+    public void DeleteOpportunity()
+	{
+		// if for any reason we are missing the reference
+		if (SelectedOpportunityId == null) 	
+			return;	
+		// find the account record within the collection
+		Opportunity tobeDeleted = null;
+		for(Opportunity a : getOpportunityList())
+		{
+			if (a.Id == SelectedOpportunityId) 
+			{
+				tobeDeleted = a;
+				break;
+			}		
+		}
+		//if account record found delete it
+		if (tobeDeleted != null) 
+		{
+			Delete tobeDeleted;
+		}	
+	}	
+	
+	//Populates left hand side in dynamic column selection
+	public List<SelectOption> UnSelectedColumnOptions
+    {
+        get
+        {       
+            List<SelectOption> options = new List<SelectOption>(); 
+            for (String s : UnSelectedSet)
+            {
+                options.add(new SelectOption(s,APIVsLabel.get(s)));                                                                            
+            }       
+            options.sort();     
+            return options;
+        }            
+    }
+    //Populates right hand side in dynamic column selection
+    public List<SelectOption> SelectedColumnOptions
+    {
+        get
+        {       
+            List<SelectOption> options = new List<SelectOption>();    
+            for (String s : SelectedSet)
+            {
+                    options.add(new SelectOption(s,APIVsLabel.get(s))); 
+            }       
+            options.sort();     
+            return options;
+        } 
+    }
+    
+    //Method for moving fields from Left to Right
+    public void ColumnSelected() 
+    {
+        SwitchColumns(selectedList, selectedSet, unSelectedSet);
+    }
+    //Method for moving fields from Right to Left
+    public void ColumnDeSelected() 
+    {
+        SwitchColumns(unselectedList, unSelectedSet, selectedSet);
+    }
+    //Method for moving column fields
+    private void SwitchColumns(List<String> items,Set<String> moveTo, Set<String> removeFrom) 
+    {
+        for (String s: items) 
+        {
+            moveTo.add(s);
+            removeFrom.remove(s);
+        }
+    }  
+    //Used in the repeat of pageBlockTable
+    public Map<String,String> ColumnDisplay
+    {
+    	get
+    	{    		
+    		Map<String,String> tempMap = new Map<String,String>();
+    		for(String s: selectedSet)
+    		{
+    			tempMap.put(s,APIVsLabel.get(s));
+    		}    		
+    		return 	tempMap;
+    	}    
+    }
+	
+}

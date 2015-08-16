@@ -1,0 +1,132 @@
+<!-- 
+Author      : Bharathimohan Ramamurthy
+Created Date: 11/09/2014
+Code Name   :EnhancedRelatedList
+Code Type   :Visualforce
+Description : To demonstrate the effective usage of Standard Salesforce.com page layouts by embedding our custom Visual Force having DataTables into it as a section.
+              Additionally,
+              a) illustrates DataTables plug-in with apex:pageBlockTable
+              b) illustrates Field Sets
+              c) illustrates embedding of standard button actions like New, Edit, Delete on Visualforce Page
+/-->
+<apex:page standardController="Account" extensions="EnhancedRelatedList" id="RLPage">
+<!-- 
+DataTables plug-in (includes usual jQuery, dedicated DataTables Script and CSS) has been downloaded from http://www.datatables.net/ and uploaded into SFDC as static resource named "jQueryDataTables"
+ -->
+<script type="text/javascript" src="{!URLFOR($Resource.jQueryDataTablesZip, 'js/jquery.js')}"></script>
+<script type="text/javascript" src="{!URLFOR($Resource.jQueryDataTablesZip, 'js/jquery.dataTables.js')}"></script>
+<apex:stylesheet value="{!URLFOR($Resource.jQueryDataTablesZip, 'css/jquery.dataTables.css')}"/>
+<apex:form >
+<!-- Action Function to call the action in controller to delete the selected opportunity -->
+<apex:actionFunction action="{!DeleteOpportunity}" name="DeleteOpportunity" reRender="RelatedListTable">
+    <apex:param name="myid" value="" assignTo="{!SelectedOpportunityId}"/>
+</apex:actionFunction>
+<apex:pageBlock mode="maindetail" id="MainPB">
+    <apex:pageBlockButtons location="top">
+        <!-- Embeds standard button Opportunity New action -->
+        <apex:outputLink target="_blank" value="{!URLFOR($Action.Opportunity.New)}" styleClass="btn" style="text-decoration:none;">
+            New Opportunity
+        </apex:outputLink>
+        <!-- Icon to open the Enhanced Related in a new tab for more detailed review -->
+        <div style="float:right;">
+            <apex:outputLink target="_blank" value="/apex/EnhancedOpportunityRelatedList?Id={!Account.Id}"><apex:image value="/img/icon/console24.png"/></apex:outputLink>
+        </div>          
+    </apex:pageBlockButtons>
+    <!-- Dynamic Column Selections Starts-->
+    <apex:pageBlockSection title="Select Fields to Display" collapsible="true" id="selectionBlock">
+    <apex:panelGrid columns="3">
+        <apex:selectList id="unselected_list" required="false" value="{!selectedList}" multiselect="true" size="5" style="width:250px">
+            <apex:selectOptions value="{!UnSelectedColumnOptions}"/>
+        </apex:selectList>
+        <apex:panelGroup style="vertical-align:middle">
+            <apex:commandButton value=">>" action="{!ColumnSelected}" status="fieldSelect" rerender="MainPB" oncomplete="recons();"/><br/>
+            <apex:commandButton value="<<" action="{!ColumnDeSelected}" status="fieldSelect" rerender="MainPB" oncomplete="recons();"/><br/>
+            <apex:actionStatus id="fieldSelect">
+                <apex:facet name="start">
+                    <apex:image value="/img/loading32.gif" style="height:15px;margin-left:6px;"/>
+                </apex:facet>
+            </apex:actionStatus>
+        </apex:panelGroup>
+        <apex:selectList id="selected_list" required="false" value="{!unselectedList}" multiselect="true" size="5" style="width:250px">
+            <apex:selectOptions value="{!SelectedColumnOptions}"/>
+        </apex:selectList>
+    </apex:panelGrid>
+    </apex:pageBlockSection>
+    <!-- Dynamic Column Selections Ends-->
+    <!-- StyleClass attribute in pageBlockTable is used to apply the DataTables structure -->
+    <apex:pageBlockTable value="{!OpportunityList}" styleClass="dataTable" var="OL" id="RelatedListTable">
+        <apex:column headerValue="Action">
+            <apex:panelGrid columns="3">
+            <apex:outputLink target="_blank" value="/{!OL.Id}/e?retURL={!OL.Id}">
+                Edit
+            </apex:outputLink>          
+            <a href="javascript:if (window.confirm('Are you sure?')) DeleteOpportunity('{!OL.Id}');" style="font-weight:bold">Del</a>
+            <!-- Allows user to follow or unfollow the opportunity -->
+            <chatter:follow entityId="{!OL.Id}"/>
+            </apex:panelGrid>       
+        </apex:column>
+        <!-- Adding Opportunity Name as fixed second column -->
+        <apex:column headerValue="Opportunity Name">
+            <apex:outputLink target="_blank" value="/{!OL.Id}">{!OL.Name}</apex:outputLink>         
+        </apex:column>
+        <!-- Repeating table columns using the selected columns, and binding them inside in repeat tag to display dynamically -->                                 
+        <apex:repeat value="{!ColumnDisplay}" var="CD">                               
+            <apex:column headerValue="{!ColumnDisplay[CD]}">                                                      
+                <apex:outputField value="{!OL[CD]}"/>               
+            </apex:column>
+        </apex:repeat>
+    </apex:pageBlockTable>
+</apex:pageBlock>
+<script type="text/javascript">
+var j$ = jQuery.noConflict();
+j$('table.dataTable').dataTable(
+{    
+    "lengthMenu": [[100,200,1000,-1],[100,200,1000,"All"]],
+    "aaSorting": [[ 1, "desc" ]]
+});
+function recons()
+{
+    j$(".dataTable").dataTable({sPaginationType: "full_numbers","aaSorting": [[ 1, "desc" ]]});
+}
+</script>
+<style type="text/css">
+.sorting 
+{
+    background: #f2f3f3 url('{! URLFOR($Resource.jQueryDataTablesZip, 'images/sort_both.png') }') no-repeat center right !important;
+    padding-right: 20px !important;
+}
+.sorting_asc 
+{
+    background: #f2f3f3 url('{! URLFOR($Resource.jQueryDataTablesZip, 'images/sort_asc.png') }') no-repeat center right !important;
+    padding-right: 20px !important;
+}
+.sorting_desc 
+{
+    background: #f2f3f3 url('{! URLFOR($Resource.jQueryDataTablesZip, 'images/sort_desc.png') }') no-repeat center right !important;
+    padding-right: 20px !important;
+}
+.sorting_asc_disabled 
+{
+    background: #f2f3f3 url('{! URLFOR($Resource.jQueryDataTablesZip, 'images/sort_asc_disabled.png') }') no-repeat center right !important;
+    padding-right: 20px !important;
+}
+.sorting_desc_disabled 
+{
+    background: #f2f3f3 url('{! URLFOR($Resource.jQueryDataTablesZip, 'images/sort_desc_disabled.png') }') no-repeat center right !important;
+    padding-right: 20px !important;
+}
+table.dataTable tr.odd { background-color: white; }
+table.dataTable tr.even { background-color: white; }
+table.dataTable tr.odd td.sorting_1 { background-color: white; }
+table.dataTable tr.odd td.sorting_2 { background-color: white; }
+table.dataTable tr.odd td.sorting_3 { background-color: white; }
+table.dataTable tr.even td.sorting_1 { background-color: white; }
+table.dataTable tr.even td.sorting_2 { background-color: white; }
+table.dataTable tr.even td.sorting_3 { background-color: white; }
+.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate 
+{
+    padding: 3px;
+}
+</style>
+</apex:form>
+</apex:page>
